@@ -1,13 +1,18 @@
-import { client } from '@/lib/client';
+import supabaseClient from '@/lib/client';
 import type { NextApiRequest, NextApiResponse } from 'next';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
- const response = await client.magicLinks.email.loginOrCreate({
-   email: req.body.email,
-   login_magic_link_url: 'http://localhost:3002/api/authenticate',
-   signup_magic_link_url: 'http://localhost:3002/api/authenticate',
- });
+  const { data, error } = await supabaseClient.auth.signInWithOtp({
+    email: req.body.email,
+    options: {
+      shouldCreateUser: true,
+      emailRedirectTo: 'http://localhost:3002',
+    }
+  });
 
- console.log(response);
- res.json(response);
+  if (error) {
+    return res.status(500).json({ error: error.message });
+  }
+
+  return res.status(200).json({ data });
 }

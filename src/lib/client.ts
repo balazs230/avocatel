@@ -1,7 +1,30 @@
-import * as stytch from 'stytch';
+import { createClient } from '@supabase/supabase-js'
 
-export const client = new stytch.Client({
-  project_id: 'project-test-cef30a7d-2511-4a6c-a57d-b52a1a01c31d',
-  secret: 'secret-test-qFwNXnHWVKHK1e3IkCrORLmxxRg4BdrZUcw=',
-  env: stytch.envs.test
-});
+const options = {
+db: {
+  schema: 'public',
+},
+auth: {
+  autoRefreshToken: true,
+  persistSession: true,
+  detectSessionInUrl: true,
+},
+globals: {
+  headers: {
+    'x-gbpay-header': 'gbpayuk'},
+},
+}
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing Supabase environment variables');
+}
+
+const supabaseClient = createClient(
+  supabaseUrl,
+  supabaseAnonKey,
+  options
+);
+
+export default supabaseClient
