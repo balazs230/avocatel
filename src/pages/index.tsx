@@ -1,69 +1,146 @@
+// pages/index.tsx
 import { NextPage } from "next";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { User } from "@supabase/supabase-js";
-
 import supabaseClient from "@/lib/client";
 import Image from "next/image";
 
+interface Profile {
+  id: string;
+  credits: number;
+  language: string;
+  isLawyer: boolean;
+  created_at: string;
+}
+
+const DEFAULT_CREDITS = 3;
+
 const Home: NextPage = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-
   const [draft, setDraft] = useState("");
   const [messages, setMessages] = useState<string[]>([]);
-
-  const [userCredits, setUserCredits] = useState(10);
-  const [prevCredits, setPrevCredits] = useState(10);
-
+  const [userCredits, setUserCredits] = useState(0);
+  const [prevCredits, setPrevCredits] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
+  // Initialize session and profile on mount
   useEffect(() => {
-    const getSession = async () => {
+    const initializeUser = async () => {
       try {
-        const { data, error } = await supabaseClient.auth.getSession();
-        if (error) {
-          console.error("Error fetching session:", error);
+        const {
+          data: { session },
+          error: sessionError,
+        } = await supabaseClient.auth.getSession();
+
+        if (sessionError) {
+          console.error("Error fetching session:", sessionError);
           return;
         }
-        if (data?.session) {
-          setCurrentUser(data.session.user ?? null);
+
+        if (session?.user) {
+          setCurrentUser(session.user);
+          await fetchUserProfile(session.user.id);
         }
-      } catch (err) {
-        console.error("Unexpected error while fetching session:", err);
+      } catch (error) {
+        console.error("Unexpected error during initialization:", error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    getSession();
+    initializeUser();
   }, []);
 
-  const handleLogout = async () => {
-    try {
-      await supabaseClient.auth.signOut();
-      setCurrentUser(null);
-    } catch (err) {
-      console.error("Error signing out:", err);
+  // Scroll chat to bottom when messages update
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // Fetch an existing profile or create a new one if none exists
+  const fetchUserProfile = async (userId: string) => {
+    const { data: profiles, error: fetchError } = await supabaseClient
+      .from("profiles")
+      .select("*")
+      .eq("id", userId);
+
+    if (fetchError) {
+      console.error("Error fetching profile:", fetchError.message);
+      return;
+    }
+
+    if (profiles && profiles.length > 0) {
+      const existingProfile = profiles[0];
+      setProfile(existingProfile);
+      setUserCredits(existingProfile.credits);
+      setPrevCredits(existingProfile.credits);
+    } else {
+      // No profile found; create a new one
+      const { data: newProfile, error: createError } = await supabaseClient
+        .from("profiles")
+        .insert({
+          id: userId,
+          credits: DEFAULT_CREDITS,
+          language: "ro",
+          isLawyer: false,
+        })
+        .select()
+        .single();
+
+      if (createError) {
+        console.error("Error creating profile:", createError.message);
+      } else {
+        setProfile(newProfile);
+        setUserCredits(newProfile.credits);
+        setPrevCredits(newProfile.credits);
+      }
     }
   };
 
-  const handleSend = () => {
+  // Utility to update the user's credits both locally and in the DB
+  const updateUserCredits = async (newCredits: number) => {
+    setPrevCredits(userCredits);
+    setUserCredits(newCredits);
+    if (profile && currentUser) {
+      const { error } = await supabaseClient
+        .from("profiles")
+        .update({ credits: newCredits })
+        .eq("id", currentUser.id);
+      if (error) console.error("Error updating credits:", error.message);
+    }
+  };
+
+  // Handler for sending a message
+  const handleSend = async () => {
     if (!draft.trim() || userCredits <= 0) return;
 
     setMessages((prev) => [...prev, draft]);
     setDraft("");
-    setPrevCredits(userCredits);
-    setUserCredits((prev) => Math.max(prev - 1, 0));
+    await updateUserCredits(userCredits - 1);
   };
 
-  useEffect(() => {
-    if (bottomRef.current) {
-      bottomRef.current.scrollIntoView({ behavior: "smooth" });
+  // Handler for user sign-out
+  const handleLogout = async () => {
+    try {
+      await supabaseClient.auth.signOut();
+      setCurrentUser(null);
+      setProfile(null);
+      setUserCredits(0);
+      setPrevCredits(0);
+    } catch (error) {
+      console.error("Error signing out:", error);
     }
-  }, [messages]);
+  };
+
+  // Handler for refilling credits from the modal
+  const handleRefill = async (creditsToAdd: number) => {
+    await updateUserCredits(userCredits + creditsToAdd);
+    setIsModalOpen(false);
+  };
 
   if (isLoading) {
     return (
@@ -75,7 +152,7 @@ const Home: NextPage = () => {
 
   return (
     <div className="flex min-h-screen bg-black text-white">
-      {/* LEFT COLUMN (messages + input) */}
+      {/* Left Column (Chat messages and input) */}
       <div className="w-4/5 border-r-2 border-orange-500 flex flex-col h-screen">
         {/* Header */}
         <div className="flex w-max mx-auto bg-white/30 backdrop-blur-3xl justify-center gap-3 mt-5 py-2 px-6 rounded-full items-center">
@@ -87,6 +164,7 @@ const Home: NextPage = () => {
             height={50}
           />
         </div>
+
         {currentUser ? (
           <>
             {/* Messages Container */}
@@ -96,10 +174,10 @@ const Home: NextPage = () => {
                   <div className="py-3 px-6 bg-green-600 text-white rounded-3xl w-max max-w-xs sm:max-w-md">
                     {msg}
                   </div>
-
                   <div className="w-full text-right flex justify-end">
                     <div className="bg-gray-400 text-black py-3 px-6 rounded-3xl w-max max-w-xs sm:max-w-md">
-                      xxxxxxxxxxxxxxxxxxxxxxxxxxxx
+                      This is a demo response that will be replaced with api
+                      response.
                     </div>
                   </div>
                 </div>
@@ -107,10 +185,10 @@ const Home: NextPage = () => {
               <div ref={bottomRef} />
             </div>
 
-            {/* Textarea & Send Button */}
-            <div className="pb-8 px-8 pt-4 bg-black/90 flex gap-3 items-center">
+            {/* Message input and send button */}
+            <div className="py-4 px-8 bg-black/90 flex gap-3 items-center">
               <textarea
-                className="block w-full h-24 p-2 mb-4 text-black rounded resize-none"
+                className="block w-full h-24 p-2 text-black rounded resize-none"
                 placeholder="Write something..."
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
@@ -131,7 +209,6 @@ const Home: NextPage = () => {
             </div>
           </>
         ) : (
-          // If user is not signed in, show the CTA in the center
           <div className="flex flex-1 justify-center items-center">
             <Link
               href="/login"
@@ -143,7 +220,7 @@ const Home: NextPage = () => {
         )}
       </div>
 
-      {/* RIGHT COLUMN */}
+      {/* Right Column (User info and actions) */}
       <div className="w-1/5 p-4 bg-black/80 flex flex-col items-center">
         {currentUser ? (
           <div className="flex flex-col items-center">
@@ -158,7 +235,6 @@ const Home: NextPage = () => {
               Sign out
             </button>
 
-            {/* Progress Bar */}
             <div className="flex flex-col gap-3 w-full justify-center mt-10">
               <p className="text-center text-lg font-semibold">
                 Available Credits
@@ -190,6 +266,7 @@ const Home: NextPage = () => {
         )}
       </div>
 
+      {/* Refill Credits Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
           <div className="bg-white text-black p-6 rounded-lg shadow-lg w-1/3">
@@ -198,29 +275,19 @@ const Home: NextPage = () => {
             <div className="flex flex-col gap-3">
               <button
                 className="bg-blue-600 text-white px-4 py-2 rounded"
-                onClick={() => {
-                  setPrevCredits(userCredits);
-                  setUserCredits(userCredits + 10);
-                  setIsModalOpen(false);
-                }}
+                onClick={() => handleRefill(10)}
               >
                 10 Credits - 10 RON
               </button>
               <button
                 className="bg-blue-800 text-white px-4 py-2 rounded"
-                onClick={() => {
-                  setPrevCredits(userCredits);
-                  setUserCredits(userCredits + 50);
-                  setIsModalOpen(false);
-                }}
+                onClick={() => handleRefill(50)}
               >
                 50 Credits - 40 RON
               </button>
               <button
                 className="bg-gray-500 text-white px-4 py-2 rounded"
-                onClick={() => {
-                  setIsModalOpen(false);
-                }}
+                onClick={() => setIsModalOpen(false)}
               >
                 Cancel
               </button>
