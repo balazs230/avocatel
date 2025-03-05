@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 // Read the environment variable (it will be set at build time)
-const deploymentType = process.env.DEPLOYMENT_TYPE;
+const deploymentType = process.env.NEXT_PUBLIC_DEPLOYMENT_TYPE;
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function middleware(request: NextRequest) {
