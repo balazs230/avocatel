@@ -16,7 +16,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     email,
     options: {
       shouldCreateUser: true,
-      emailRedirectTo: 'http://localhost:3002', // The page to redirect to after clicking the magic link
+      emailRedirectTo: '/', // The page to redirect to after clicking the magic link
     },
   });
 
