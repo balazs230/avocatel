@@ -21,7 +21,7 @@ export function middleware(request: NextRequest) {
             margin: 0;
             padding: 0;
             font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-            background: linear-gradient(135deg, #74ABE2, #5563DE);
+            background: linear-gradient(135deg, #B5E2D9, #5A5A5A);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -47,8 +47,7 @@ export function middleware(request: NextRequest) {
       </head>
       <body>
         <div class="container">
-          <h1>Stay tuned...</h1>
-          <p>This site is under construction.</p>
+          <h1>This site is under construction</h1>
         </div>
       </body>
       </html>
@@ -57,8 +56,8 @@ export function middleware(request: NextRequest) {
         headers: { 'Content-Type': 'text/html' },
       }
     );
-  }
+   }
 
-  // In non-production environments, continue normally
-  return NextResponse.next();
+//   // In non-production environments, continue normally
+   return NextResponse.next();
 }
