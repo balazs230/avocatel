@@ -1,12 +1,13 @@
 // pages/index.tsx
 import { NextPage } from "next";
-import Link from "next/link";
+import Head from "next/head";
+import { useRouter } from "next/router";
 import { useEffect, useRef, useState } from "react";
 import { User } from "@supabase/supabase-js";
 import Image from "next/image";
-import Head from "next/head";
-import { useRouter } from "next/router";
 import supabaseClient from "@/lib/supabase";
+import { LoginModal } from "@/components/LoginModal";
+import { RefillCreditsModal } from "@/components/RefillCreditsModal";
 
 interface Profile {
   id: string;
@@ -20,17 +21,21 @@ const DEFAULT_CREDITS = 3;
 
 const Home: NextPage = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  console.log("🚀 ~ currentUser:", currentUser?.id);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [draft, setDraft] = useState("");
   const [messages, setMessages] = useState<string[]>([]);
   const [userCredits, setUserCredits] = useState(0);
   const [prevCredits, setPrevCredits] = useState(0);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isRefillModalOpen, setIsRefillModalOpen] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+
+  // States for login modal
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginSuccess, setLoginSuccess] = useState(false);
+  const [loginError, setLoginError] = useState("");
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
-
   const router = useRouter();
   const { canceled } = router.query;
 
@@ -150,10 +155,34 @@ const Home: NextPage = () => {
     }
   };
 
-  // Handler for refilling credits from the modal
-  const handleRefill = async (creditsToAdd: number) => {
-    await updateUserCredits(userCredits + creditsToAdd);
-    setIsModalOpen(false);
+  // Handler for login modal submission
+  const handleLoginSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setLoginError("");
+    try {
+      const formData = new FormData(e.currentTarget);
+      const inputs = Object.fromEntries(formData.entries());
+      const response = await fetch("/api/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(inputs),
+      });
+
+      if (response.ok) {
+        setLoginSuccess(true);
+        setLoginEmail("");
+        // Optionally, refresh the session here so that currentUser gets updated.
+        // For example, you could call your initializeUser function again.
+      } else {
+        const data = await response.json();
+        setLoginError(data.error || "Something went wrong. Please try again.");
+      }
+    } catch (err) {
+      console.error("Error submitting login form:", err);
+      setLoginError("Something went wrong. Please try again.");
+    }
   };
 
   if (isLoading) {
@@ -201,7 +230,7 @@ const Home: NextPage = () => {
                     </div>
                     <div className="w-full text-right flex justify-end">
                       <div className="bg-gray-400 text-black py-3 px-6 rounded-3xl w-max max-w-xs sm:max-w-md">
-                        This is a demo response that will be replaced with api
+                        This is a demo response that will be replaced with API
                         response.
                       </div>
                     </div>
@@ -235,12 +264,12 @@ const Home: NextPage = () => {
             </>
           ) : (
             <div className="flex flex-1 justify-center items-center">
-              <Link
-                href="/login"
+              <button
+                onClick={() => setIsLoginModalOpen(true)}
                 className="bg-blue-600 hover:bg-blue-700 text-white py-4 px-8 rounded-full text-2xl font-semibold transition-colors"
               >
                 Sign in to start chatting
-              </Link>
+              </button>
             </div>
           )}
         </div>
@@ -274,7 +303,7 @@ const Home: NextPage = () => {
 
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(true)}
+                  onClick={() => setIsRefillModalOpen(true)}
                   className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-6 rounded-full text-lg font-semibold transition-colors"
                 >
                   Refill
@@ -282,58 +311,33 @@ const Home: NextPage = () => {
               </div>
             </div>
           ) : (
-            <Link
-              href="/login"
+            <button
+              onClick={() => setIsLoginModalOpen(true)}
               className="bg-red-600 hover:bg-red-700 text-white py-3 px-6 rounded-full text-lg font-semibold transition-colors"
             >
               Sign In
-            </Link>
+            </button>
           )}
         </div>
 
         {/* Refill Credits Modal */}
-        {isModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
-            <div className="bg-white text-black p-6 rounded-lg shadow-lg w-1/3">
-              <h2 className="text-2xl mb-4">Refill Credits</h2>
-              <p className="mb-4">Choose a refill package:</p>
-              <div className="flex flex-col gap-3">
-                <form
-                  action="/api/checkout_sessions"
-                  method="POST"
-                  className="w-full"
-                >
-                  <input type="hidden" name="credits" value="10" />
-                  <input
-                    type="hidden"
-                    name="priceId"
-                    value="price_1QzhQ0C6GhLmHVjlaZocKJi0"
-                  />
-                  <input type="hidden" name="userId" value={currentUser?.id} />
-                  <button
-                    type="submit"
-                    role="link"
-                    className="bg-blue-600 text-white px-4 py-2 rounded"
-                    onClick={() => {}}
-                  >
-                    10 Credits - 10 RON
-                  </button>
-                </form>
-                <button
-                  className="bg-blue-800 text-white px-4 py-2 rounded"
-                  onClick={() => handleRefill(50)}
-                >
-                  50 Credits - 40 RON
-                </button>
-                <button
-                  className="bg-gray-500 text-white px-4 py-2 rounded"
-                  onClick={() => setIsModalOpen(false)}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
+        {isRefillModalOpen && (
+          <RefillCreditsModal
+            userId={currentUser?.id ?? ""}
+            setIsRefillModalOpen={setIsRefillModalOpen}
+          />
+        )}
+
+        {/* Login Modal */}
+        {isLoginModalOpen && (
+          <LoginModal
+            loginEmail={loginEmail}
+            loginSuccess={loginSuccess}
+            loginError={loginError}
+            setLoginEmail={setLoginEmail}
+            handleLoginSubmit={handleLoginSubmit}
+            setIsLoginModalOpen={setIsLoginModalOpen}
+          />
         )}
       </div>
     </>
