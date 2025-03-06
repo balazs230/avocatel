@@ -3,9 +3,10 @@ import { NextPage } from "next";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { User } from "@supabase/supabase-js";
-import supabaseClient from "@/lib/client";
+import supabaseClient from "@/lib/supabase";
 import Image from "next/image";
 import Head from "next/head";
+import { useRouter } from "next/router";
 
 interface Profile {
   id: string;
@@ -19,6 +20,7 @@ const DEFAULT_CREDITS = 3;
 
 const Home: NextPage = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  console.log("🚀 ~ currentUser:", currentUser?.id);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [draft, setDraft] = useState("");
@@ -28,6 +30,17 @@ const Home: NextPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
+
+  const router = useRouter();
+  const { canceled } = router.query;
+
+  useEffect(() => {
+    if (canceled) {
+      console.log(
+        "Order canceled -- continue to shop around and checkout when you’re ready."
+      );
+    }
+  }, [canceled]);
 
   // Initialize session and profile on mount
   useEffect(() => {
@@ -285,12 +298,27 @@ const Home: NextPage = () => {
               <h2 className="text-2xl mb-4">Refill Credits</h2>
               <p className="mb-4">Choose a refill package:</p>
               <div className="flex flex-col gap-3">
-                <button
-                  className="bg-blue-600 text-white px-4 py-2 rounded"
-                  onClick={() => handleRefill(10)}
+                <form
+                  action="/api/checkout_sessions"
+                  method="POST"
+                  className="w-full"
                 >
-                  10 Credits - 10 RON
-                </button>
+                  <input type="hidden" name="credits" value="10" />
+                  <input
+                    type="hidden"
+                    name="priceId"
+                    value="price_1QzhQ0C6GhLmHVjlaZocKJi0"
+                  />
+                  <input type="hidden" name="userId" value={currentUser?.id} />
+                  <button
+                    type="submit"
+                    role="link"
+                    className="bg-blue-600 text-white px-4 py-2 rounded"
+                    onClick={() => {}}
+                  >
+                    10 Credits - 10 RON
+                  </button>
+                </form>
                 <button
                   className="bg-blue-800 text-white px-4 py-2 rounded"
                   onClick={() => handleRefill(50)}
