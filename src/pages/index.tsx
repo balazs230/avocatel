@@ -3,10 +3,10 @@ import { NextPage } from "next";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { User } from "@supabase/supabase-js";
-import supabaseClient from "@/lib/supabase";
 import Image from "next/image";
 import Head from "next/head";
 import { useRouter } from "next/router";
+import { supabaseClient } from "@/lib/supabase";
 
 interface Profile {
   id: string;

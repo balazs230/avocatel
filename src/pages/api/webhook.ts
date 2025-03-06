@@ -3,7 +3,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { buffer } from "micro";
 import { stripeClient } from "@/lib/stripe";
-import supabaseClient from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase";
 
 // Disable bodyParser so we can read the raw body
 export const config = {
@@ -55,7 +55,7 @@ export default async function handler(
     if (userId && purchasedCredits > 0) {
       try {
         // Fetch the current profile
-        const { data: profile, error: fetchError } = await supabaseClient
+        const { data: profile, error: fetchError } = await supabaseAdmin
           .from("profiles")
           .select("credits")
           .eq("id", userId)
@@ -66,7 +66,7 @@ export default async function handler(
           console.error("Error fetching profile:", fetchError.message);
         } else if (profile) {
           const newCredits = (profile.credits || 0) + purchasedCredits;
-          const { error: updateError } = await supabaseClient
+          const { error: updateError } = await supabaseAdmin
             .from("profiles")
             .update({ credits: newCredits })
             .eq("id", userId);

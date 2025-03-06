@@ -1,8 +1,8 @@
 // pages/success.tsx
 import { stripeClient } from "@/lib/stripe";
+import { supabaseClient } from "@/lib/supabase";
 import { GetServerSideProps } from "next";
 import Link from "next/link";
-import supabaseClient from "@/lib/supabase";
 
 interface SuccessProps {
   customerEmail: string;
