@@ -17,15 +17,12 @@ globals: {
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY as string;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
-const supabaseClient = createClient(
-  supabaseUrl,
-  supabaseAnonKey,
-  options
-);
+const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, options);
 
-export default supabaseClient
+export default supabaseAdmin

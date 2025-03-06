@@ -3,7 +3,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { buffer } from "micro";
 import { stripeClient } from "@/lib/stripe";
-import { supabaseAdmin } from "@/lib/supabase";
+import supabaseAdmin from "@/lib/supabaseAdmin";
 
 // Disable bodyParser so we can read the raw body
 export const config = {
